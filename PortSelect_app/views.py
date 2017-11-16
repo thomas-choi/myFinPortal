@@ -17,8 +17,8 @@ class PortSelectView(TemplateView):
         text = "No text received!"
         if form.is_valid():
             pname = form.cleaned_data['portname']
-            text = "Result from {}".format(pname)
-            weightings = getBestWeighting(pname)
+            text = "Calculated weightings for {} portfolio".format(pname)
+            weightings = getBestWeighting(pname, True, "EEF.png")
         args = {'form':form, 'text': text, 'weightings': weightings}
         print(" Result weightings is {}".format(weightings))
         return render(request, self.template_name, args)

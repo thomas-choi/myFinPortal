@@ -1,20 +1,10 @@
 import datetime as dt
 from dateutil.relativedelta import *
 import pandas as pd
-# import sys
-# import time
-# import numpy as np  # array operations
-# import scipy.stats as scs
-# import scipy.optimize as sco
-# import scipy.interpolate as sci
-# import calendar
-# import concurrent.futures
-# import matplotlib as mpl
-# import matplotlib.pyplot as plt  # standard plotting library
-# from pylab import plt
-# plt.style.use('ggplot')
-# %matplotlib inline
-# put all plots in the notebook itself
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 """
   Local  Class
 """
@@ -22,7 +12,7 @@ from PortSelect_app.CAPM import CAPM
 from PortSelect_app.CAPMdata import Import_Data
 
 
-def Rebalance(indata, drawChart):
+def Rebalance(indata, drawChart, figfile, pName):
 
     aCapm = CAPM(indata)
     prets, pvols = aCapm.random_walk()
@@ -33,33 +23,38 @@ def Rebalance(indata, drawChart):
     MVW = pd.DataFrame(index=indata.columns)
     MVW['weight'] = mvpw.round(3)
 
-    # if drawChart:
-    #     retH = msrstat[0] * 1.1
-    #     retL = mvstat[0] * 0.7
-    #     print(" Calculate Frontier from return {} to {}".format(retL, retH))
-    #     trets, tvols = aCapm.EF_Frontier(retH, retL)
-    #     print(" Fronter lint has {} points".format(len(trets)))
-    #     plt.figure(figsize=(10, 6))
-    #     print(" Plot random walk points.")
-    #     plt.scatter(pvols, prets,
-    #                     c=prets / pvols, marker='.')
-    #                     # random portfolio composition
-    #     print(" Plot EF frontier points.")
-    #     plt.scatter(tvols, trets,
-    #                     c=trets / tvols,
-    #                     marker='X')
-    #                     # efficient frontier
-    #     plt.plot(msrstat[1], msrstat[0],
-    #                 'r*', markersize=15.0)
-    #                 # portfolio with highest Sharpe ratio
-    #     plt.plot(mvstat[1], mvstat[0],
-    #                 'y*', markersize=15.0)
-    #                 # minimum variance portfolio
-    #     plt.grid(True)
-    #     plt.xlabel('expected volatility')
-    #     plt.ylabel('expected return')
-    #     plt.title('Minimum risk portfolios for given return level (crosses) '+sdt+' - '+edt)
-    #     plt.colorbar(label='Sharpe ratio')
+    if drawChart:
+        ssdt = indata.index[0]
+        eedt = indata.index[-1]
+        retH = msrstat[0] * 1.1
+        retL = mvstat[0] * 0.7
+        print(" Calculate Frontier from return {} to {}".format(retL, retH))
+        trets, tvols = aCapm.EF_Frontier(retH, retL)
+        print(" Fronter lint has {} points".format(len(trets)))
+        fig = plt.figure(figsize=(10, 6))
+        print(" Plot random walk points.")
+        plt.scatter(pvols, prets,
+                        c=prets / pvols, marker='.')
+                        # random portfolio composition
+        print(" Plot EF frontier points.")
+        plt.scatter(tvols, trets,
+                        c=trets / tvols,
+                        marker='X')
+                        # efficient frontier
+        plt.plot(msrstat[1], msrstat[0],
+                    'r*', markersize=15.0, label="Max Sharpe Ratio")
+                    # portfolio with highest Sharpe ratio
+        plt.plot(mvstat[1], mvstat[0],
+                    'y*', markersize=15.0, label="Min Variance")
+                    # minimum variance portfolio
+        plt.grid(True)
+        plt.xlabel('expected volatility')
+        plt.ylabel('expected return')
+        plt.title(pName+': Min risk for given return level '+ssdt+' - '+eedt)
+        plt.colorbar(label='Sharpe ratio')
+        plt.legend()
+        if len(figfile)>0:
+            fig.savefig(figfile)
 
     return SHRW, MVW
 
@@ -69,7 +64,7 @@ def print_port_weighting(title, port, weights) :
         if (w > 0.0):
             print('{} : {}'.format(sym, w))
 
-def getBestWeighting(portName):
+def getBestWeighting(portName, drFlag, drFile):
     inname = portName
     print(" get best weighting of {}.".format(inname))
     endt = dt.date.today()
@@ -86,8 +81,7 @@ def getBestWeighting(portName):
         ssdt = d1.index[0]
         eedt = d1.index[-1]
         print(" Actual Data from {} to {}.".format(ssdt, eedt))
-        drawchart = False
-        SRw, MVw = Rebalance(d1, drawchart)
+        SRw, MVw = Rebalance(d1, False, "", inname)
         targetPortSize = 5
         tmp = SRw.sort_values(by=['weight'], ascending=False)
         finalPort = tmp.head(targetPortSize)
@@ -98,7 +92,7 @@ def getBestWeighting(portName):
         # d2.info()
         ssdt = d2.index[0]
         eedt = d2.index[-1]
-        SRw, MVw = Rebalance(d2, drawchart)
+        SRw, MVw = Rebalance(d2, drFlag, drFile, inname)
         print("\n***  Final Portfolio Weighting by Sharpe Ratio: ***\n {}".format(SRw))
 
         for index, row in SRw.iterrows():
