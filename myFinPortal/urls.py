@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^$', views.IndexView.as_view(),name='index'),
     url(r'^admin/', admin.site.urls),
     url(r'^PS_app/',include('PortSelect_app.urls')),
+    url(r'^PT_app/',include('PairTrade_app.urls')),
 ]

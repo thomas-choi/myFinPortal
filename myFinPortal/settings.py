@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'MainPage_app',
     'PortSelect_app',
+    'PairTrade_app',
 ]
 
 MIDDLEWARE = [
