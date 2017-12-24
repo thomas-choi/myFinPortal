@@ -10,13 +10,14 @@ from CAPMdata import FinDB
 
 ## set up global variables
 DailyPlan = True
-allports = cd.get_portName_List()
+plist = cd.get_portName_List()
+
 if DailyPlan:
     datlenyr = 2
 else:
     datlenyr=20
 
-print("Request to down portfolio list: {}".format(allports))
+print("Request to down portfolio list: {}".format(plist))
 endt = dt.date.today()
 stdt = endt - relativedelta(years=datlenyr)
 sdt = stdt.__str__()
@@ -28,16 +29,11 @@ pardir = os.path.abspath(os.path.join(curdir, os.pardir))
 datapath = os.path.join(pardir, "Data")
 print("Data folder is {}".format(datapath))
 
-if not DailyPlan:
-    print("Create DataBase")
-    myfindb = FinDB(pardir)
-
-plist = cd.get_portName_List()
+print("Create DataBase")
+myfindb = FinDB(pardir)
 
 for pn in plist:
     stklist = cd.get_Index_StockList(pn)
-    if (pn != "test"):
-        stklist = stklist + [pn]
     for sym in stklist :
         print("-- Start download {} for {}".format(sym, pn))
         cfile = sym+".csv"
@@ -50,12 +46,11 @@ for pn in plist:
                 stk = stk.dropna(axis=0, how='any')
                 print("-- Saving {} to {}".format(sym, fpath))
                 stk.to_csv(fpath)
-                if not DailyPlan:
-                    try:
-                        myfindb.Add(sym, stk)
-                    except:
-                        print("Save {} to DB Error.".format(sym))
-                        pass
+                try:
+                    myfindb.Add(sym, stk)
+                except:
+                    print("Save {} to DB Error.".format(sym))
+                    pass
             except Exception as e:
                 if hasattr(e, 'message'):
                     print("Exception occurred {}.".format(e.message))

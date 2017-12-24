@@ -1,4 +1,5 @@
 import pandas as pd
+from dateutil import parser
 import os, os.path
 import sqlite3
 
@@ -7,7 +8,7 @@ Global variables
 """
 DataPath = "Data"  		# data forlder from working directory
 
-testdata = ['0027.HK','0700.HK']
+testdata = ['^HSI','QQQ', 'SPY']
 
 HSI = ['0027.HK','0700.HK','0005.HK','0939.HK','1299.HK','0941.HK','1398.HK','3988.HK','0001.HK',
       '2318.HK','0388.HK','0386.HK','0002.HK','0883.HK','0016.HK','0823.HK','2388.HK','0003.HK',
@@ -60,6 +61,8 @@ where Symbol = \'{}\' order by Date"""
 querybyDateSQL = """Select Date, Open, High, Low, Close, AdjClose, Volume from HISTORICAL
 where Symbol = \'{}\' and Date >= \'{}\' and Date <= \'{}\' order by Date"""
 
+queryLastRecordDateSQL = """Select Symbol, max(Date) from HISTORICAL group by Symbol"""
+
 cols = ['Date','Open','High','Low','Close','AdjClose','Volumn']
 
 class FinDB :
@@ -72,21 +75,38 @@ class FinDB :
         self.curs.execute(createTableSQL)
         self.conn.commit()
         self.insertlimit = 3000
+        self.LastDate = pd.DataFrame(columns=['Symbol', 'LastDate'])
+        self.curs.execute(queryLastRecordDateSQL)
+        rows = self.curs.fetchall()
+        for r in rows:
+            # print(" r={}".format(r))
+            self.LastDate.loc[len(self.LastDate)]= list(r)
+        self.LastDate = self.LastDate.set_index('Symbol')
+        print('LastDate DF is \n{}'.format(self.LastDate))
 
     def __del__(self):
         self.conn.close()
 
     def Add(self, sym, stk):
         count=0
+        if (self.LastDate.index == sym).any():
+            ldate = parser.parse(self.LastDate.loc[sym].LastDate)
+        else:
+            ldate = parser.parse('1000-01-01 00:00:00')
+        print("{} has record up to {}".format(sym, ldate))
         for i,r in stk.iterrows():
-            # print(addRecSQL.format(sym, i, r['Open'], r['High'], r['Low'],r['Close'],r['Adj Close'],r['Volume']))
-            self.curs.execute(addRecSQL.format(sym, i, r['Open'], r['High'], r['Low'],r['Close'],r['Adj Close'],r['Volume']))
-            count += 1
-            if count > self.insertlimit:
-                print("** commit() after {} insert".format(count))
-                self.conn.commit()
-                count = 0
-        self.conn.commit()
+            # print(" Check {}and{} on type {} {}".format(i,ldate, type(i), type(ldate)))
+            if i > ldate:
+                # print(addRecSQL.format(sym, i, r['Open'], r['High'], r['Low'],r['Close'],r['Adj Close'],r['Volume']))
+                self.curs.execute(addRecSQL.format(sym, i, r['Open'], r['High'], r['Low'],r['Close'],r['Adj Close'],r['Volume']))
+                count += 1
+                if count > self.insertlimit:
+                    print("** commit() after {} insert".format(count))
+                    self.conn.commit()
+                    count = 0
+        if count > 0:
+            print("** commit() after {} insert".format(count))
+            self.conn.commit()
 
     def Query(self, sym, start, end):
         data = pd.DataFrame(columns=cols)
