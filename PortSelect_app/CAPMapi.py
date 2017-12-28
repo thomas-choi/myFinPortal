@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
   Local  Class
 """
 from PortSelect_app.CAPM import CAPM
-from PortSelect_app.CAPMdata import Import_Data
-
+from PortSelect_app.CAPMdata import Import_Data, FinDB
 
 def Rebalance(indata, drawChart, figfile, pName):
 
@@ -64,7 +63,7 @@ def print_port_weighting(title, port, weights) :
         if (w > 0.0):
             print('{} : {}'.format(sym, w))
 
-def getBestWeighting(portName, drFlag, drFile):
+def getBestWeighting(portName, drFlag, drFile, refine):
     inname = portName
     print(" get best weighting of {}.".format(inname))
     endt = dt.date.today()
@@ -84,21 +83,60 @@ def getBestWeighting(portName, drFlag, drFile):
         SRw, MVw = Rebalance(d1, False, "", inname)
         targetPortSize = 5
         tmp = SRw.sort_values(by=['weight'], ascending=False)
-        finalPort = tmp.head(targetPortSize)
-        print('  Final Porfolio select by top {}\n {}'.format(targetPortSize, finalPort))
-        d2 = pd.DataFrame()
-        for col in finalPort.index:
-            d2[col] = d1[col]
-        # d2.info()
-        ssdt = d2.index[0]
-        eedt = d2.index[-1]
-        SRw, MVw = Rebalance(d2, drFlag, drFile, inname)
-        print("\n***  Final Portfolio Weighting by Sharpe Ratio: ***\n {}".format(SRw))
-
-        for index, row in SRw.iterrows():
-            flist.append("{} is {}".format(index, row['weight']))
-        print('  Final Porfolio select by top {}\n {}'.format(targetPortSize, finalPort))
+        if refine:
+            finalPort = tmp.head(targetPortSize)
+            print('  Porfolio first select by top {}\n {}'.format(targetPortSize, finalPort))
+            d2 = pd.DataFrame()
+            for col in finalPort.index:
+                d2[col] = d1[col]
+            # d2.info()
+            ssdt = d2.index[0]
+            eedt = d2.index[-1]
+            SRw, MVw = Rebalance(d2, drFlag, drFile, inname)
+            tmp = SRw.sort_values(by=['weight'], ascending=False)
+        tmp = tmp[tmp > 0 ].dropna()
+        flist = {}
+        for index, row in tmp.iterrows():
+            flist[index] = row['weight']
+        print('  Final Selected Portfolio\n {}'.format(flist))
     return flist
 
+def getBestWeightingDB(myDB, portName, drFlag, drFile, refine, tdate):
+    inname = portName
+    print(" get best weighting of {} on {}.".format(inname, tdate))
+    if tdate != None:
+        endt = tdate
+    else:
+        endt = dt.date.today()
+    stdt = endt - relativedelta(years=2)
+    sdt = stdt.__str__()
+    edt = endt.__str__()
+    print(" Extract Data from {} to {}".format(sdt, edt))
+
+    bigdata = myDB.Import_Data(portName, sdt, edt)
+    print(" Import Data Info {}".format(bigdata.info()))
+    if bigdata.shape[0] > 0 and bigdata.shape[1] > 0:
+        d1 = bigdata[sdt:edt]
+        ssdt = d1.index[0]
+        eedt = d1.index[-1]
+        print(" Actual Data from {} to {}.".format(ssdt, eedt))
+        SRw, MVw = Rebalance(d1, False, "", inname)
+        targetPortSize = 5
+        tmp = SRw.sort_values(by=['weight'], ascending=False)
+        if refine:
+            finalPort = tmp.head(targetPortSize)
+            print('  Final Porfolio selected by top {}\n {}'.format(targetPortSize, finalPort))
+            d2 = pd.DataFrame()
+            for col in finalPort.index:
+                d2[col] = d1[col]
+            # d2.info()
+            ssdt = d2.index[0]
+            eedt = d2.index[-1]
+            SRw, MVw = Rebalance(d2, drFlag, drFile, inname)
+            tmp = SRw.sort_values(by=['weight'], ascending=False)
+        tmp = tmp[tmp > 0 ].dropna()
+        print('  Final Porfolio selection\n {}'.format(tmp))
+    return tmp
+
 if __name__ == "__main__":
-	getBestWeighting("test")
+	getBestWeighting("^HSI", True, "")

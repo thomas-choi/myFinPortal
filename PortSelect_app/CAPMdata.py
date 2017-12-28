@@ -22,11 +22,11 @@ QQQ = ['AAPL', 'MSFT', 'AMZN', 'FB', 'GOOG', 'GOOGL', 'INTC', 'CMCSA', 'CSCO', '
         'COST','BIIB','BIDU','MDLZ','AMAT','TSLA','MU','ADP','ATV','TMUS','CSX','MAR','CTSH','SRG',
         'REGN','INTU','EBAY','VRTX','JD','EA','MNST']
 
-SPY=['AAPL', 'MSFT','AMZN','FB','JNJ','BRK.B','JPM','XOM','GOOGL','GOOG','BAC',
+SPY=['AAPL', 'MSFT','AMZN','FB','JNJ','JPM','XOM','GOOGL','GOOG','BAC',
         'WFC','PG','CVX','INTC','T','PFE','V','HD','C','VZ','CSCO','KO','CMCSA',
         'DWDP','PEP','DIS','PM','GE','MRK','ABBV','ORCL','BA','WMT','MA','MMM',
         'MCD','IBM','NVDA','MO','AMGN','HON','AVGO','MDT','BMY','QCOM','TXN',
-        'GILD','UNP','ACN','ADBE','PYPL','UTX','GS','SLB','PCLN','NFLX','SBUX',
+        'UNP','ACN','ADBE','PYPL','UTX','GS','SLB','PCLN','NFLX','SBUX',
         'USB','LLY','CELG','CAT','UPS','LMT','TMO','NKE','COST','NEE','CRM','CVS',
         'CB','MS','AXP','CHTR','TWX','LOW','BIIB','CL','MDLZ','PNC','AMT','DUK',
         'WBA','AMAT','COP','BLK','AGN','EOG','ANTM','AET','GM','DHR','GD','MET',
@@ -55,15 +55,28 @@ Date text NOT NULL,
 Open real, High real, Low real, Close real, AdjClose real, Volume integer,
 PRIMARY KEY(Symbol, Date))"""
 
+createPStableSQL="""CREATE TABLE if not exists "HistPortSelect" (
+`PortName` TEXT NOT NULL,
+`Date` TEXT NOT NULL,
+`Symbol` TEXT NOT NULL DEFAULT '',
+`Weight` REAL NOT NULL DEFAULT 0.0,
+PRIMARY KEY(`PortName`,`Date`) )"""
+
 queryAllSQL = """Select Date, Open, High, Low, Close, AdjClose, Volume from HISTORICAL
+where Symbol = \'{}\' order by Date"""
+
+queryColsAllSQL = """Select {} from HISTORICAL
 where Symbol = \'{}\' order by Date"""
 
 querybyDateSQL = """Select Date, Open, High, Low, Close, AdjClose, Volume from HISTORICAL
 where Symbol = \'{}\' and Date >= \'{}\' and Date <= \'{}\' order by Date"""
 
+queryColsbyDateSQL = """Select {} from HISTORICAL
+where Symbol = \'{}\' and Date >= \'{}\' and Date <= \'{}\' order by Date"""
+
 queryLastRecordDateSQL = """Select Symbol, max(Date) from HISTORICAL group by Symbol"""
 
-cols = ['Date','Open','High','Low','Close','AdjClose','Volumn']
+DBcolumns = ['Date','Open','High','Low','Close','AdjClose','Volumn']
 
 class FinDB :
 
@@ -109,7 +122,7 @@ class FinDB :
             self.conn.commit()
 
     def Query(self, sym, start, end):
-        data = pd.DataFrame(columns=cols)
+        data = pd.DataFrame(columns=DBcolumns)
         if len(start)>0 and len(end)>0:
             self.curs.execute(querybyDateSQL.format(sym, start, end))
         else:
@@ -120,34 +133,114 @@ class FinDB :
         data = data.set_index('Date')
         return data
 
-    def load_list(self, stocklist) :
+    def QuerybyCols(self, sym, start, end, clist):
+        if len(clist) <= 0:
+            clist = DBcolumns
+        data = pd.DataFrame(columns=clist)
+        colstr = clist[0]
+        for i in range(1, len(clist)):
+            colstr = colstr + ',' + clist[i]
+        if len(start)>0 and len(end)>0:
+            qstring = queryColsbyDateSQL.format(colstr, sym, start, end)
+        else:
+            qstring = queryColsAllSQL.format(colstr, sym)
+        self.curs.execute(qstring)
+        rows = self.curs.fetchall()
+        for r in rows:
+            data.loc[len(data)] = list(r)
+        data = data.set_index('Date')
+        return data
+
+    def load_list(self, stocklist, start, end) :
         data = pd.DataFrame()
         for sym in stocklist:
-            data[sym] = Query(sym, "", "")['AdjClose']
+            data[sym] = self.QuerybyCols(sym, start, end, ['Date','Close'])['Close']
             if data[sym].dtype !=  float :
                 data = data[data[sym] != 'null']
         data = data.astype(float)
         return data
 
-    def Import_Data(self, portName):
+    def Import_Data(self, portName, start, end):
         global  testdata
         global  HSI
         global  QQQ
         global  SPY
 
         if portName == "test":
-            gdata = load_list(testdata)
+            gdata = self.load_list(testdata, start, end)
         elif portName == "^HSI":
-            gdata = load_list(HSI)
+            gdata = self.load_list(HSI, start, end)
         elif portName == "QQQ":
-            gdata = load_list(QQQ)
+            gdata = self.load_list(QQQ, start, end)
         elif portName == "SPY":
-            gdata = load_list(SPY)
+            gdata = self.load_list(SPY, start, end)
         elif portName == "ETF":
-            gdata = load_list(ETF)
+            gdata = self.load_list(ETF, start, end)
         else:
             gdata = pd.DataFrame()
         return gdata
+
+class DBTable:
+    def __init__(self, db):
+        self.mydb = db
+        self.cmtlimit = 3000
+        self.Icnt = 0
+        self.Columns = []
+        self.CreateTableSQL = """ """
+        self.AddSQL = """ """
+        self.QuerySQL = """ """
+
+    def AddRec(self, queryString):
+        self.mydb.curs.execute(queryString)
+        self.Icnt += 1
+        if self.Icnt > self.cmtlimit:
+            print("** commit() after {} insert".format(self.Icnt))
+            self.mydb.conn.commit()
+            self.Icnt = 0
+    def EndCommit(self):
+        if self.Icnt > 0:
+            print("** commit() after {} insert".format(self.Icnt))
+            self.mydb.conn.commit()
+            self.Icnt = 0
+
+class PortSelectTbl(DBTable):
+    def __init__(self, db):
+        DBTable.__init__(self, db)
+        self.Columns = ['PortName','Date','Symbol','Weight']
+        self.CreateTableSQL = """CREATE TABLE if not exists "HistPortSelect" (`PortName` TEXT NOT NULL,`Date` TEXT NOT NULL,`Symbol` TEXT NOT NULL DEFAULT '',`Weight` REAL NOT NULL DEFAULT 0.0 )"""
+        self.AddSQL = "INSERT INTO HistPortSelect (PortName,Date,Symbol,Weight) VALUES ( \'{}\', \'{}\', \'{}\',{})"
+        self.checkUpdatesql1 = "select symbol, max(Date),min(Date) from HISTORICAL where symbol = \'{}\'"
+        self.checkUpdatesql2 = "select PortName, max(Date) from HistPortSelect where PortName = \'{}\'"
+        self.mydb.curs.execute(self.CreateTableSQL)
+        self.mydb.conn.commit()
+
+    def Add(self, PName, Pdate, wgtlist):
+        qstring = ''
+        for i, r in wgtlist.iterrows():
+            qstring = self.AddSQL.format(PName, Pdate, i, r.weight)
+            print(qstring)
+            DBTable.AddRec(self, qstring)
+        DBTable.EndCommit(self)
+
+    def getUpdateDate(self, PName, symbol):
+        hdate = None
+        pdate = None
+        qstring = self.checkUpdatesql1.format(symbol)
+        self.mydb.curs.execute(qstring)
+        rows = self.mydb.curs.fetchall()
+        for r in rows:
+            if r[1] != None:
+                hdate = parser.parse(r[1])
+            if r[2] != None:
+                pdate = parser.parse(r[2])
+        qstring = self.checkUpdatesql2.format(PName)
+        self.mydb.curs.execute(qstring)
+        rows = self.mydb.curs.fetchall()
+        for r in rows:
+            if r[1] != None:
+                pdate = parser.parse(r[1])
+        print("Hdate={} pdate={}".format(hdate, pdate))
+        return hdate, pdate
 
 def get_portName_List():
     pNList = []

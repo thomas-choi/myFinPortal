@@ -57,4 +57,4 @@ for pn in plist:
                 else:
                     print("There is unknown error when download {} web.".format(sym))
                 pass
-            time.sleep(5)
+            time.sleep(2)
