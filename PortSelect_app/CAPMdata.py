@@ -211,6 +211,7 @@ class PortSelectTbl(DBTable):
         self.AddSQL = "INSERT INTO HistPortSelect (PortName,Date,Symbol,Weight) VALUES ( \'{}\', \'{}\', \'{}\',{})"
         self.checkUpdatesql1 = "select symbol, max(Date),min(Date) from HISTORICAL where symbol = \'{}\'"
         self.checkUpdatesql2 = "select PortName, max(Date) from HistPortSelect where PortName = \'{}\'"
+        self.getMissingDatesql= "select Date from HISTORICAL where symbol = \'{}\' and Date not in ( select distinct Date from HistPortSelect where PortName = \'{}\' ) order by Date desc"
         self.mydb.curs.execute(self.CreateTableSQL)
         self.mydb.conn.commit()
 
@@ -239,8 +240,19 @@ class PortSelectTbl(DBTable):
         for r in rows:
             if r[1] != None:
                 pdate = parser.parse(r[1])
-        print("Hdate={} pdate={}".format(hdate, pdate))
         return hdate, pdate
+
+    def getMissingDate(self, PName, symbol):
+        Dlist = []
+        qstring = self.getMissingDatesql.format(symbol, PName)
+        print(qstring)
+        self.mydb.curs.execute(qstring)
+        rows = self.mydb.curs.fetchall()
+        for r in rows:
+            if r != None:
+                dd = parser.parse(r[0])
+                Dlist.append(dd)
+        return Dlist
 
 def get_portName_List():
     pNList = []

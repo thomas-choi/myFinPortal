@@ -114,12 +114,12 @@ def getBestWeightingDB(myDB, portName, drFlag, drFile, refine, tdate):
     print(" Extract Data from {} to {}".format(sdt, edt))
 
     bigdata = myDB.Import_Data(portName, sdt, edt)
-    print(" Import Data Info {}".format(bigdata.info()))
     if bigdata.shape[0] > 0 and bigdata.shape[1] > 0:
-        d1 = bigdata[sdt:edt]
+        d1 = bigdata[sdt:edt].dropna(axis=1, how='any')
         ssdt = d1.index[0]
         eedt = d1.index[-1]
         print(" Actual Data from {} to {}.".format(ssdt, eedt))
+        print(" Import Data Info {}".format(d1.info()))
         SRw, MVw = Rebalance(d1, False, "", inname)
         targetPortSize = 5
         tmp = SRw.sort_values(by=['weight'], ascending=False)
