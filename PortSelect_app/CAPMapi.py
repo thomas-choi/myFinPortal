@@ -4,12 +4,22 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, os.path
 
 """
   Local  Class
 """
 from PortSelect_app.CAPM import CAPM
-from PortSelect_app.CAPMdata import Import_Data, FinDB
+from PortSelect_app.CAPMdata import Import_Data, FinDB, PortSelectTbl
+
+def getHistPortWeighting(pName):
+    curpath = os.path.abspath(".")
+    print("Data folder is {}".format(curpath))
+    mydb = FinDB(curpath)
+    psTbl = PortSelectTbl(mydb)
+    ddata = psTbl.Query(pName)
+    ddata = ddata.loc[:, (ddata != 0).any(axis=0)]
+    return ddata
 
 def Rebalance(indata, drawChart, figfile, pName):
 

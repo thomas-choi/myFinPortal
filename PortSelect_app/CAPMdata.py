@@ -1,5 +1,6 @@
 import pandas as pd
 from dateutil import parser
+import datetime as dt
 import os, os.path
 import sqlite3
 
@@ -40,7 +41,7 @@ IndexList = {
     ('QQQ', 'Nasdaq 100 Index(QQQ)'),
     ('SPY', 'S&P 500 Index(SPY)'),
     ('ETF', 'US ETFs'),
-    ('test', 'Testing Stock List(test)'),
+    # ('test', 'Testing Stock List(test)'),
 }
 
 # DataBase variables
@@ -212,8 +213,42 @@ class PortSelectTbl(DBTable):
         self.checkUpdatesql1 = "select symbol, max(Date),min(Date) from HISTORICAL where symbol = \'{}\'"
         self.checkUpdatesql2 = "select PortName, max(Date) from HistPortSelect where PortName = \'{}\'"
         self.getMissingDatesql= "select Date from HISTORICAL where symbol = \'{}\' and Date not in ( select distinct Date from HistPortSelect where PortName = \'{}\' ) order by Date desc"
+        self.Querysql="select Date, Symbol, Weight from HistPortSelect where PortName = \'{}\' order by Date desc, Weight desc"
         self.mydb.curs.execute(self.CreateTableSQL)
         self.mydb.conn.commit()
+        self.cols = ['Date','1','2','3','4','5','6','7','8','9','10']
+
+    def fillZero(self, llen, llist):
+        for i in range(len(llist), llen):
+            llist.append(0)
+        return llist
+
+    def Query(self, PName):
+        retbl = pd.DataFrame(columns = self.cols)
+        qstring = self.Querysql.format(PName)
+        self.mydb.curs.execute(qstring)
+        rows = self.mydb.curs.fetchall()
+        curdt = parser.parse('3000/01/01')
+        curlist = []
+        for r in rows:
+            dat = parser.parse(r[0])
+            if dat < curdt:
+                if len(curlist)>0:
+                    curlist = self.fillZero(len(self.cols)-1, curlist)
+                    curlist.insert(0, curdt)
+                    # print("**{}=>{}".format(curdt, curlist))
+                    retbl.loc[len(retbl)] = curlist
+                curdt = dat
+                curlist = []
+            if len(curlist) < len(self.cols)-1:
+                curlist.append((r[1], r[2]))
+        if len(curlist)>0:
+            curlist = self.fillZero(len(self.cols)-1, curlist)
+            curlist.insert(0, curdt)
+            # print("**{}=>{}".format(curdt, curlist))
+            retbl.loc[len(retbl)] = curlist
+        retbl.set_index('Date')
+        return retbl
 
     def Add(self, PName, Pdate, wgtlist):
         qstring = ''

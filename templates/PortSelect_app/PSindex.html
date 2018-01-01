@@ -1,20 +1,43 @@
 <!DOCTYPE html>
 {% extends "base.html" %}
   {% block body_block %}
+  <style>
+    h1 {
+      color: DarkBlue
+    }
+    table.pstable {
+    }
+    th {
+      padding: 3px;
+      text-align: center;
+      background-color: lightblue;
+    }
+    td {
+      padding: 3px;
+      border-bottom: 1px solid #fff;
+    }
+    tr:nth-child(even) {
+      background-color: #d2d2d2;
+    }
+  </style>
+    <h1> -----------------  </h1>
     <h1>Welcome to Portfolio Selection Page!</h1>
-    <div class="container">
+    <div class="jumbotron">
       <form  method="POST">
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit">Get Weighting</button>
       </form>
-      {% if text %}
-      <h2>{{ text }}</h2>
-      <img src="/EEF.png" alt="EEF pic here">
-      <!-- <img src="http://www.pythonanywhere.com/user/tchoi2007/files/home/tchoi2007/graph.png" alt="EEF pic here"> -->
-      {%for item in weightings%}
-        <li>{{ item }}</li>
-      {% endfor %}
-      {% endif %}
     </div>
+      <div style="overflow-x:auto;">
+        {% if text %}
+        <h3>{{ text }}</h3>
+        <!-- <img src="/EEF.png" alt="EEF pic here"> -->
+        <!-- <img src="http://www.pythonanywhere.com/user/tchoi2007/files/home/tchoi2007/graph.png" alt="EEF pic here"> -->
+        <!-- {%for item in weightings%}
+          <li>{{ item }}</li>
+        {% endfor %} -->
+        {{ weightings | safe }}
+        {% endif %}
+      </div>
   {% endblock %}

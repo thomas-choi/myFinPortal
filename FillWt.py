@@ -29,5 +29,6 @@ for pn in plist:
     dlist = psTbl.getMissingDate(pn, stklist[0])
 #    print("Hdate={}, pdate={} for {}".format(hdate, pdate, pn))
     for i in range(0, FillDaysCount):
+        print("getBestWeightingDB of {} list on {}".format(pn, dlist[i]))
         rlist = getBestWeightingDB(mydb, pn, True, 'EEF.png', False, dlist[i])
         psTbl.Add(pn, dlist[i], rlist)
